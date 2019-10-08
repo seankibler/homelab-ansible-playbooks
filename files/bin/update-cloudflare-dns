@@ -1,0 +1,61 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+
+CLOUDFLARE_API_HOST=${CLOUDFLARE_API_HOST:-https://api.cloudflare.com/client/v4}
+DOMAIN=$1
+ZONE=$(echo $DOMAIN | cut -d. -f2-3)
+DEBUG=${DEBUG:-0}
+if [ $DEBUG -ne 0 ]; then
+  echo ZONE=$ZONE
+fi
+
+function cloudflare_api_get() {
+  curl -s -X GET -H 'Content-Type: application/json' \
+    -H "X-Auth-Key: ${CLOUDFLARE_API_TOKEN}" \
+    -H "X-Auth-Email: ${CLOUDFLARE_API_EMAIL}" \
+    "${CLOUDFLARE_API_HOST}/${1}"
+}
+
+function cloudflare_api_put() {
+  curl -s -X PUT -H 'Content-Type: application/json' \
+    -H "X-Auth-Key: ${CLOUDFLARE_API_TOKEN}" \
+    -H "X-Auth-Email: ${CLOUDFLARE_API_EMAIL}" \
+    -d "$2" \
+    "${CLOUDFLARE_API_HOST}/${1}"
+}
+
+function whatismyip() {
+  curl -sL --retry 3 -H 'Content-Type: application/json' \
+    'https://api.ipify.org?format=json' | jq -r '.ip'
+}
+
+# lookup zone
+ZONEID=$(cloudflare_api_get "zones?name=${ZONE}" | jq -r '.result[0].id')
+if [ $DEBUG -ne 0 ]; then
+  echo ZONEID=$ZONEID
+fi
+
+# lookup existing Cloudflare IP
+SETIP=$(cloudflare_api_get "zones/${ZONEID}/dns_records?name=${DOMAIN}&type=A" \
+  | jq -r '.result[0].content')
+if [ $DEBUG -ne 0 ]; then
+  echo SETIP=$SETIP
+fi
+
+# get actual IP
+ACTUAL_IP=$(whatismyip)
+if [ $DEBUG -ne 0 ]; then
+  echo ACTUALIP=$ACTUAL_IP
+fi
+
+# update if necessary
+if [ "$SETIP" != "$ACTUAL_IP" ]; then
+  RECORDID=$(cloudflare_api_get "zones/${ZONEID}/records?name=${DOMAIN}&type=A" \
+    | jq -r '.result[0].id')
+  if [ $DEBUG -ne 0 ]; then
+    echo "Updating Cloudflare record ${ZONEID}"
+  fi
+  cloudflare_api_put "zones/${ZONEID}/dns_records/${RECORDID}" \
+    "{\"type\":\"A\" \"name\":\"$DOMAIN\" \"content\":\"$ACTUAL_IP\"}"
+fi

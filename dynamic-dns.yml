@@ -1,0 +1,48 @@
+- hosts: bastion
+  become: true
+  vars:
+    cloudflare_home_domain: vpn.seankibler.com
+    cloudflare_api_key: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32346633303162633664383733653735666236306331353833653431653366363239316234656535
+          3165373831613664633061353638656337613632363539300a363139653362323736336663333737
+          62616439366639326162653438353863613562626333303535356666376131343632666439663939
+          6433316439663564380a336632666263363465313835616530366335616430306238623532313733
+          36323664353433656561653563393730323864323862653935303433326138396166336431393361
+          3238363037323165363161663932646238373162373430376534
+    cloudflare_api_email: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          37333837316437386331326433643536613736356432636165353036306566353438653239323635
+          6137386639383638636234336230626330373931303862380a636332373933633836333665353061
+          65393565306530366239346637303431633135393262313964383933396662306465313932393138
+          3962313939313266330a386531353264613064643831373237393538343865313334346435656562
+          38376565363131386261666665373263646430346265383363343231383363636665
+  tasks:
+    - name: Install package dependencies
+      package:
+        name:
+          - jq
+
+    - name: Install IP update script
+      copy:
+        dest: /usr/local/bin/update-cloudflare-dns
+        src: files/bin/update-cloudflare-dns
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Set Cloudflare API env vars
+      cronvar:
+        name: '{{ item.name }}'
+        value: '{{ item.value }}'
+      with_items:
+        - name: CLOUDFLARE_API_KEY
+          value: '{{ cloudflare_api_key }}'
+        - name: CLOUDFLARE_API_EMAIL
+          value: '{{ cloudflare_api_email }}'
+
+    - name: Install cron job
+      cron:
+        name: update cloudflare dns
+        hour: 0
+        job: '/usr/local/bin/update-cloudflare-dns {{ cloudflare_home_domain }}'
