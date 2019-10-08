@@ -1,0 +1,146 @@
+---
+
+- hosts: metrics-source
+  become: true
+  vars:
+    go_bin_path: /usr/local/bin
+  tasks:
+    - name: add go apt-repo
+      apt_repository:
+        repo: 'ppa:longsleep/golang-backports'
+        update_cache: true
+
+    - name: install monitoring dependencies
+      package:
+        name:
+          - 'prometheus-node-exporter'
+          - 'golang-go'
+          - 'git'
+        state: present
+
+    - name: run prometheus node exporter
+      service:
+        name: prometheus-node-exporter
+        state: started
+
+    - name: install monitoring dependencies
+      package:
+        name:
+          - 'freeipmi'
+      when: use_ipmi is defined and use_ipmi
+
+    - name: install ipmi prometheus exporter
+      shell: 'GOBIN={{ go_bin_path }} go get github.com/soundcloud/ipmi_exporter'
+      args:
+        creates: '{{ go_bin_path }}/ipmi_exporter'
+      when: use_ipmi is defined and use_ipmi
+
+    - name: install ipmi exporter systemd script
+      copy:
+        dest: /lib/systemd/system/prometheus-ipmi-exporter.service
+        content: |2
+          [Unit]
+          Description="Run prometheus ipmi_exporter"
+
+          [Service]
+          Restart=always
+          Type=simple
+          ExecStart={{ go_bin_path }}/ipmi_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+      when: use_ipmi is defined and use_ipmi
+
+    - name: enable and run ipmi exporter
+      systemd:
+        name: prometheus-ipmi-exporter
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: use_ipmi is defined and use_ipmi
+
+    - name: install sensors dependencies
+      package:
+        name:
+          - 'lm-sensors'
+          - 'libsensors4-dev'
+      when: use_sensors is defined and use_sensors
+      register: sensors_install
+
+    - name: configure sensors
+      command: sensors-detect --auto
+      when: use_sensors is defined and use_sensors and sensors_install.changed
+
+    - name: install sensors prometheus exporter
+      shell: 'GOBIN={{ go_bin_path }} go get github.com/ncabatoff/sensor-exporter/sensor-exporter'
+      args:
+        creates: '{{ go_bin_path }}/sensor-exporter'
+      when: use_sensors is defined and use_sensors
+
+    - name: install sensor exporter systemd script
+      copy:
+        dest: /lib/systemd/system/prometheus-sensor-exporter.service
+        content: |2
+          [Unit]
+          Description="Run prometheus sensor-exporter"
+
+          [Service]
+          Restart=always
+          Type=simple
+          ExecStart={{ go_bin_path }}/sensor-exporter
+
+          [Install]
+          WantedBy=multi-user.target
+      when: use_sensors is defined and use_sensors
+
+    - name: enable and run sensor exporter
+      systemd:
+        name: prometheus-sensor-exporter
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: use_sensors is defined and use_sensors
+
+- hosts: metrics-server
+  become: true
+  vars:
+    grafana_version: 6.3.6
+    prometheus_config_file: /etc/prometheus/prometheus.yml
+    prometheus_jobs: |
+      - job_name: ipmi
+        static_configs:
+          - targets:
+            - 'localhost:9290'
+      - job_name: sensors
+        static_configs:
+          - targets:
+            - 'localhost:9255'
+      - job_name: node-metrics
+        static_configs:
+          - targets:
+            - 'bastion.kibler.local:9100'
+  tasks:
+    - name: install prometheus
+      package:
+        name: 'prometheus'
+      tags: ['prometheus']
+
+    - name: install grafana
+      apt:
+        deb: 'https://dl.grafana.com/oss/release/grafana_{{ grafana_version }}_amd64.deb'
+      tags: ['grafana']
+
+    - name: configure prometheus
+      blockinfile:
+        path: '{{ prometheus_config_file }}'
+        block: |
+          {{ prometheus_jobs | indent(2, True) }}
+      tags: ['prometheus', 'config']
+      register: configure_prometheus
+
+    - name: reload prometheus
+      service:
+        name: prometheus
+        state: reloaded
+      tags: ['prometheus', 'config']
+      when: configure_prometheus.changed

@@ -1,0 +1,13 @@
+[metrics-server]
+griswold.kibler.local
+
+[metrics-source]
+griswold.kibler.local
+bastion.kibler.local ansible_connection=local
+
+[docker-node]
+griswold.kibler.local
+
+[bastion]
+bastion.kibler.local  ansible_connection=local
+

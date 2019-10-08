@@ -1,0 +1,2 @@
+use_ipmi: true
+use_sensors: true
