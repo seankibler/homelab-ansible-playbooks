@@ -14,3 +14,5 @@ griswold.kibler.local
 [bastion]
 bastion.kibler.local  ansible_connection=local
 
+[megaraid]
+griswold.kibler.local
