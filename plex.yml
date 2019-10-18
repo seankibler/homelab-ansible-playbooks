@@ -1,0 +1,56 @@
+---
+
+- hosts: plex
+  become: true
+  vars:
+    plex_media_dir: /mnt/data/medialibrary
+    plex_media_directories:
+      - videos
+      - videos/kids
+      - videos/lifting
+      - videos/other
+      - movies
+      - music
+      - photos
+      - camerauploads
+  tasks:
+    - name: "Install plex apt key"
+      apt_key:
+        url: https://downloads.plex.tv/plex-keys/PlexSign.key
+      tags: ['plex']
+
+    - name: "Install apt source"
+      apt_repository:
+        filename: plexmediaserver
+        repo: deb https://downloads.plex.tv/repo/deb public main
+      tags: ['plex']
+
+    - name: "Install plexmediaserver"
+      package:
+        name: plexmediaserver
+        update_cache: yes
+      tags: ['plex']
+
+    - name: "Setup media directories"
+      file:
+        state: directory
+        path: "{{ plex_media_dir }}/{{ item }}"
+        owner: plex
+        group: plex
+        mode: "2775"
+      with_items: "{{ plex_media_directories }}"
+      tags: ['plex']
+
+    - name: "File permission cron"
+      cron:
+        name: 'Fix Plex media file permissions'
+        minute: 0
+        job: 'find {{ plex_media_dir }} -type f -print0 | xargs -0 chmod 0660'
+      tags: ['plex']
+
+    - name:
+      cron:
+        name: 'Fix Plex media directory permissions'
+        minute: 0
+        job: 'chown -R plex:plex {{ plex_media_dir }}/*'
+      tags: ['plex']
