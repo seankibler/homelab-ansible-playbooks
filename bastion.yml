@@ -1,0 +1,35 @@
+- hosts: bastion
+  become: true
+  vars:
+    kubectl_version: 2.15.0
+    helm_version: 2.14.3
+  tasks:
+    - name: Install python pip
+      package:
+        name: '{{ item }}'
+      with_items:
+        - python-pip
+        - ansible
+        - python-jinja2
+
+    - name: Install kubectl
+      get_url:
+        url: 'https://storage.googleapis.com/kubernetes-release/release/{{ kubectl_version }}/bin/linux/arm/kubectl'
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Download helm
+      get_url:
+        url: 'https://get.helm.sh/helm-v{{ helm_version }}-linux-arm.tar.gz'
+        dest: '/tmp/helm-v{{ helm_version }}-linux-arm.tar.gz'
+        mode: '0755'
+
+    - name: Unpack helm
+      unarchive:
+        src: '/tmp/helm-v{{ helm_version }}-linux-arm.tar.gz'
+        dest: '/usr/local/bin'
+        extra_opts: ['--strip-components', '1']
+        remote_src: true
+        exclude:
+          - README.md
+          - LICENSE
