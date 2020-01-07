@@ -1,0 +1,73 @@
+- hosts: megaraid
+  vars:
+    megacli_version: "8-07-14"
+    megacli_sha256sum: "d9b152ae3dab76a334b9251702dba3311ceed91b58aaf52d916eb4ba1c2ab6e9"
+    megacli_package_release: "1"
+    megacli_package_version: "{{ megacli_version | regex_replace('-', '.') }}"
+    megacli_filename: "{{megacli_version}}_MegaCLI.zip"
+    megacli_download_url: https://docs.broadcom.com/docs-and-downloads/raid-controllers/raid-controllers-common-files/{{megacli_filename}}
+  tasks:
+    - name: check that megacli doesn't already exist
+      stat:
+        path: /usr/local/sbin/MegaCli-{{megacli_package_version}}
+      register: megacli_exists
+
+    - name: install unzip
+      become: true
+      package:
+        name: ["unzip", "alien"]
+      when: megacli_exists.stat.exists == false
+
+    - name: download megacli
+      become: true
+      get_url:
+        url: "{{megacli_download_url}}"
+        dest: /usr/local/src/{{megacli_filename}}
+        sha256sum: "{{megacli_sha256sum}}"
+      when: megacli_exists.stat.exists == false
+
+    - name: make megcli source directory
+      become: true
+      file:
+        path: /usr/local/src/megacli
+        state: directory
+        mode: 0755
+      when: megacli_exists.stat.exists == false
+
+    - name: unpack megacli
+      become: true
+      unarchive:
+        src: /usr/local/src/{{megacli_filename}}
+        dest: /usr/local/src/megacli
+        copy: false
+      args:
+        creates: /usr/local/src/megacli/{{megacli_version}}_MegaCLI.txt
+      when: megacli_exists.stat.exists == false
+
+    - name: convert megacli rpm to deb
+      become: true
+      command: alien -k MegaCli-{{megacli_package_version}}-{{megacli_package_release}}.noarch.rpm
+      args:
+        chdir: /usr/local/src/megacli/Linux
+        creates: /usr/local/src/megacli/Linux/megacli_{{megacli_package_version}}-{{megacli_package_release}}_all.deb
+
+    - name: install megacli
+      become: true
+      apt:
+        deb: /usr/local/src/megacli/Linux/megacli_{{megacli_package_version}}-{{megacli_package_release}}_all.deb
+        state: present
+
+    - name: link megacli for convenience
+      become: true
+      file:
+        src: /opt/MegaRAID/MegaCli/MegaCli64
+        dest: /usr/local/sbin/{{item}}
+        owner: root
+        group: root
+        state: link
+      with_items:
+        - MegaCli-{{megacli_package_version}}
+        - MegaCli
+        - MegaCli64
+        - megacli
+      when: megacli_exists.stat.exists == false

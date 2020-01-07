@@ -5,9 +5,14 @@ griswold.kibler.local
 griswold.kibler.local
 bastion.kibler.local ansible_connection=local
 
+[plex]
+griswold.kibler.local
+
 [docker-node]
 griswold.kibler.local
 
 [bastion]
 bastion.kibler.local  ansible_connection=local
 
+[megaraid]
+griswold.kibler.local
