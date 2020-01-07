@@ -30,7 +30,9 @@
       when: use_ipmi is defined and use_ipmi
 
     - name: install ipmi prometheus exporter
-      shell: 'GOBIN={{ go_bin_path }} go get github.com/soundcloud/ipmi_exporter'
+      command: go get github.com/soundcloud/ipmi_exporter
+      environment:
+        GOBIN: '{{ go_bin_path }}'
       args:
         creates: '{{ go_bin_path }}/ipmi_exporter'
       when: use_ipmi is defined and use_ipmi
@@ -72,7 +74,9 @@
       when: use_sensors is defined and use_sensors and sensors_install.changed
 
     - name: install sensors prometheus exporter
-      shell: 'GOBIN={{ go_bin_path }} go get github.com/ncabatoff/sensor-exporter/sensor-exporter'
+      command: go get github.com/ncabatoff/sensor-exporter/sensor-exporter
+      environment:
+        GOBIN: '{{ go_bin_path }}'
       args:
         creates: '{{ go_bin_path }}/sensor-exporter'
       when: use_sensors is defined and use_sensors

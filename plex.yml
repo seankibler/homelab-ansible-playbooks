@@ -37,7 +37,7 @@
         path: "{{ plex_media_dir }}/{{ item }}"
         owner: plex
         group: plex
-        mode: "2775"
+        mode: 02775
       with_items: "{{ plex_media_directories }}"
       tags: ['plex']
 
@@ -48,7 +48,7 @@
         job: 'find {{ plex_media_dir }} -type f -print0 | xargs -0 chmod 0660'
       tags: ['plex']
 
-    - name:
+    - name: 'Plex permissions cron'
       cron:
         name: 'Fix Plex media directory permissions'
         minute: 0
