@@ -1,0 +1,86 @@
+---
+- hosts: griswold
+  become: true
+  roles:
+    - { role: nginxinc.nginx }
+  vars:
+    nginx_http_template_enable: true
+    nginx_http_template:
+      grafana:
+        port: 80
+        template_file: http/default.conf.j2
+        conf_file_name: grafana.conf
+        conf_file_location: /etc/nginx/conf.d/
+        servers:
+          grafana:
+            listen:
+              listen_localhost:
+                ip: 0.0.0.0
+                port: 80
+            server_name: grafana.kibler.local
+            error_page: /usr/share/nginx/html
+            access_log:
+              - name: main
+                location: /var/log/nginx/access.log
+            error_log:
+              location: /var/log/nginx/error.log
+              level: warn
+            root: /usr/share/nginx/html
+            try_files: $uri $uri/index.html $uri.html =404
+            reverse_proxy:
+              locations:
+                backend:
+                  location: /
+                  proxy_pass: http://localhost:3000/
+      speedtest:
+        port: 80
+        template_file: http/default.conf.j2
+        conf_file_name: speedtest.conf
+        conf_file_location: /etc/nginx/conf.d/
+        servers:
+          speedtest:
+            listen:
+              listen_localhost:
+                ip: 0.0.0.0
+                port: 80
+            server_name: speedtest.kibler.local
+            error_page: /usr/share/nginx/html
+            access_log:
+              - name: main
+                location: /var/log/nginx/access.log
+            error_log:
+              location: /var/log/nginx/error.log
+              level: warn
+            root: /usr/share/nginx/html
+            try_files: $uri $uri/index.html $uri.html =404
+            reverse_proxy:
+              locations:
+                backend:
+                  location: /
+                  proxy_pass: http://localhost:8080/
+      plex:
+        port: 80
+        template_file: http/default.conf.j2
+        conf_file_name: plex.conf
+        conf_file_location: /etc/nginx/conf.d/
+        servers:
+          plex:
+            listen:
+              listen_localhost:
+                ip: 0.0.0.0
+                port: 80
+            server_name: plex.kibler.local
+            error_page: /usr/share/nginx/html
+            access_log:
+              - name: main
+                location: /var/log/nginx/access.log
+            error_log:
+              location: /var/log/nginx/error.log
+              level: warn
+            root: /usr/share/nginx/html
+            try_files: $uri $uri/index.html $uri.html =404
+            reverse_proxy:
+              locations:
+                backend:
+                  location: /
+                  proxy_pass: http://localhost:32400/
