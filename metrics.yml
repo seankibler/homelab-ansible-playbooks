@@ -1,6 +1,6 @@
 ---
 
-- hosts: metrics-source
+- hosts: bastion,griswold
   become: true
   vars:
     go_bin_path: /usr/local/bin
@@ -105,7 +105,7 @@
         daemon_reload: true
       when: use_sensors is defined and use_sensors
 
-- hosts: metrics-server
+- hosts: griswold
   become: true
   vars:
     grafana_version: 6.3.6

@@ -1,6 +1,6 @@
 ---
 
-- hosts: plex
+- hosts: griswold
   become: true
   vars:
     plex_media_dir: /mnt/data/medialibrary
