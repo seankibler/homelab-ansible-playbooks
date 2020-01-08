@@ -1,0 +1,7 @@
+- hosts: bastion,griswold
+  become: true
+  vars:
+    nfs_exports:
+      - "/mnt/data *(rw,insecure,sync,no_root_squash)"
+  roles:
+    - { role: geerlingguy.nfs }
